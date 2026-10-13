@@ -1,6 +1,7 @@
 import { Router } from "express";
 import { createHash, randomBytes } from "node:crypto";
 import { pool } from "../db";
+import { autenticarDueno } from "../middleware/autenticarDueno";
 
 const router = Router();
 
@@ -113,6 +114,62 @@ router.post("/:slug/turnos", async (req, res) => {
   } catch (error) {
     console.error(error);
     res.status(500).json({ error: "Error interno del servidor" });
+  }
+});
+
+router.get("/:slug/fila", autenticarDueno, async (_req, res) => {
+  try {
+    const resultado = await pool.query(
+      `SELECT numero, nombre_cliente, estado, creado_en
+       FROM turnos
+       WHERE negocio_id = $1 AND estado IN ('esperando', 'atendiendo')
+       ORDER BY numero`,
+      [res.locals.negocioId]
+    );
+    res.json(resultado.rows);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: "Error interno del servidor" });
+  }
+});
+
+router.post("/:slug/siguiente", autenticarDueno, async (_req, res) => {
+  const cliente = await pool.connect();
+  try {
+    await cliente.query("BEGIN");
+
+    // Bloquea el negocio para que dos "Siguiente" simultáneos no se pisen.
+    await cliente.query("SELECT id FROM negocios WHERE id = $1 FOR UPDATE", [
+      res.locals.negocioId,
+    ]);
+
+    await cliente.query(
+      `UPDATE turnos SET estado = 'terminado'
+       WHERE negocio_id = $1 AND estado = 'atendiendo'`,
+      [res.locals.negocioId]
+    );
+
+    const siguiente = await cliente.query(
+      `UPDATE turnos
+       SET estado = 'atendiendo', atendido_en = now()
+       WHERE id = (
+         SELECT id FROM turnos
+         WHERE negocio_id = $1 AND estado = 'esperando'
+         ORDER BY numero
+         LIMIT 1
+       )
+       RETURNING numero, nombre_cliente`,
+      [res.locals.negocioId]
+    );
+
+    await cliente.query("COMMIT");
+    res.json({ atendiendo: siguiente.rows[0] ?? null });
+  } catch (error) {
+    await cliente.query("ROLLBACK");
+    console.error(error);
+    res.status(500).json({ error: "Error interno del servidor" });
+  } finally {
+    cliente.release();
   }
 });
 
