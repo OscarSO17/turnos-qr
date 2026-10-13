@@ -1,10 +1,22 @@
+import "dotenv/config";
 import express from "express";
+import { pool } from "./db";
 
 const app = express();
 const PUERTO = 3000;
 
 app.get("/salud", (_req, res) => {
   res.json({ ok: true });
+});
+
+app.get("/salud-bd", async (_req, res) => {
+  try {
+    const resultado = await pool.query("SELECT COUNT(*) AS total FROM negocios");
+    res.json({ ok: true, negocios: Number(resultado.rows[0].total) });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ ok: false });
+  }
 });
 
 app.listen(PUERTO, () => {
