@@ -32,6 +32,34 @@ flowchart LR
   B --> C[API Node + Express]
   C --> D[(PostgreSQL)]
 ```
+## Modelo de datos
+```mermaid
+erDiagram
+  NEGOCIOS ||--o{ TURNOS : tiene
+  NEGOCIOS {
+    int id PK
+    string nombre
+    string slug
+    string token_admin
+    datetime creado_en
+  }
+  TURNOS {
+    int id PK
+    int negocio_id FK
+    int numero
+    string codigo
+    string nombre_cliente
+    string estado
+    datetime creado_en
+    datetime atendido_en
+  }
+```
+
+- Un negocio tiene muchos turnos; cada turno pertenece a un solo negocio.
+- La pareja (`negocio_id`, `numero`) es única, para que no se repitan números dentro de un negocio.
+- Estados de un turno: `esperando`, `atendiendo`, `terminado`, `cancelado`.
+- `codigo` es un código privado del cliente, necesario para cancelar su propio turno.
+- La posición en la fila no se guarda: se calcula contando los turnos `esperando` con número menor.
 
 ## Estructura del proyecto
 Estructura planeada, se irá creando paso a paso:
@@ -58,3 +86,7 @@ turnos-qr/
 ## Mejoras futuras
 - Notificación cuando falten pocos turnos
 - Soporte para varios negocios con su propia cuenta
+- Tiempo estimado de espera
+- Ver el menú o los servicios del negocio mientras se espera
+- Aviso cuando falten pocos turnos
+- Cuentas con inicio de sesión para los dueños
