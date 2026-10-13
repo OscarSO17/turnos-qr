@@ -44,4 +44,38 @@ router.get("/:codigo", async (req, res) => {
   }
 });
 
+router.post("/:codigo/cancelar", async (req, res) => {
+  try {
+    const cancelado = await pool.query(
+      `UPDATE turnos
+       SET estado = 'cancelado'
+       WHERE codigo = $1 AND estado = 'esperando'
+       RETURNING numero`,
+      [req.params.codigo]
+    );
+
+    if (cancelado.rowCount === 1) {
+      res.json({ numero: cancelado.rows[0].numero, estado: "cancelado" });
+      return;
+    }
+
+    const existente = await pool.query(
+      "SELECT estado FROM turnos WHERE codigo = $1",
+      [req.params.codigo]
+    );
+
+    if (existente.rows.length === 0) {
+      res.status(404).json({ error: "Turno no encontrado" });
+      return;
+    }
+
+    res.status(409).json({
+      error: `Este turno ya no se puede cancelar (estado: ${existente.rows[0].estado})`,
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: "Error interno del servidor" });
+  }
+});
+
 export default router;
