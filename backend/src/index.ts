@@ -1,9 +1,12 @@
 import "dotenv/config";
 import express from "express";
 import { pool } from "./db";
+import negociosRouter from "./rutas/negocios";
 
 const app = express();
 const PUERTO = 3000;
+
+app.use(express.json());
 
 app.get("/salud", (_req, res) => {
   res.json({ ok: true });
@@ -18,6 +21,8 @@ app.get("/salud-bd", async (_req, res) => {
     res.status(500).json({ ok: false });
   }
 });
+
+app.use("/negocios", negociosRouter);
 
 app.listen(PUERTO, () => {
   console.log(`Servidor escuchando en http://localhost:${PUERTO}`);
