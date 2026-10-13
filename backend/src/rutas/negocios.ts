@@ -68,4 +68,52 @@ router.get("/:slug", async (req, res) => {
   }
 });
 
+router.post("/:slug/turnos", async (req, res) => {
+  const nombreCliente =
+    typeof req.body?.nombre_cliente === "string" &&
+    req.body.nombre_cliente.trim() !== ""
+      ? req.body.nombre_cliente.trim().slice(0, 60)
+      : null;
+
+  const codigo = randomBytes(16).toString("hex");
+
+  try {
+    for (let intento = 0; intento < 5; intento++) {
+      try {
+        const resultado = await pool.query(
+          `INSERT INTO turnos (negocio_id, numero, codigo, nombre_cliente)
+           SELECT n.id, COALESCE(MAX(t.numero), 0) + 1, $2, $3
+           FROM negocios n
+           LEFT JOIN turnos t ON t.negocio_id = n.id
+           WHERE n.slug = $1
+           GROUP BY n.id
+           RETURNING numero, estado`,
+          [req.params.slug, codigo, nombreCliente]
+        );
+
+        if (resultado.rowCount === 0) {
+          res.status(404).json({ error: "Negocio no encontrado" });
+          return;
+        }
+
+        const { numero, estado } = resultado.rows[0];
+        res.status(201).json({ numero, estado, codigo });
+        return;
+      } catch (error) {
+        if ((error as { code?: string }).code !== "23505") {
+          throw error;
+        }
+        // Otro cliente tomó ese número al mismo tiempo: reintentamos.
+      }
+    }
+
+    res
+      .status(503)
+      .json({ error: "Hay mucha demanda, intenta de nuevo en un momento" });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: "Error interno del servidor" });
+  }
+});
+
 export default router;

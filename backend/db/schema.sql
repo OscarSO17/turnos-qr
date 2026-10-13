@@ -10,7 +10,7 @@ CREATE TABLE turnos (
   id SERIAL PRIMARY KEY,
   negocio_id INTEGER NOT NULL REFERENCES negocios(id),
   numero INTEGER NOT NULL,
-  codigo TEXT NOT NULL,
+  codigo TEXT NOT NULL UNIQUE,
   nombre_cliente TEXT,
   estado TEXT NOT NULL DEFAULT 'esperando'
     CHECK (estado IN ('esperando', 'atendiendo', 'terminado', 'cancelado')),
