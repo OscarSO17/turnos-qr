@@ -83,15 +83,15 @@ export default function Inicio() {
 
   return (
     <Pantalla>
-      <h1 className="text-xl font-bold text-slate-800">{creado.nombre}</h1>
-      <p className="mt-1 text-sm text-slate-500">
+      <h1 className="text-xl font-bold text-slate-800 print:text-4xl">{creado.nombre}</h1>
+      <p className="print:hidden mt-1 text-sm text-slate-500">
         Imprime este QR y pégalo donde tus clientes lo vean.
       </p>
 
       <div className="mt-4 flex justify-center">
-        <QRCodeSVG value={enlaceClientes} size={200} />
+        <QRCodeSVG value={enlaceClientes} size={200} className="print:size-[14cm]"/>
       </div>
-      <p className="mt-2 break-all text-xs text-slate-400">{enlaceClientes}</p>
+      <p className="print:hidden mt-2 break-all text-xs text-slate-400">{enlaceClientes}</p>
 
       <button
         onClick={() => window.print()}
