@@ -73,3 +73,13 @@ export const llamarSiguiente = (slug: string, token: string) =>
       headers: encabezadoDueno(token),
     }
   );
+
+export const crearNegocio = (nombre: string) =>
+  pedir<{ id: number; nombre: string; slug: string; token_admin: string }>(
+    "/negocios",
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ nombre }),
+    }
+  );

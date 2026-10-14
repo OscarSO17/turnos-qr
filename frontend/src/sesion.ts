@@ -1,0 +1,1 @@
+export const claveToken = (slug: string) => `token:${slug}`;

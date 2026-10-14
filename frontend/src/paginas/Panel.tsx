@@ -1,14 +1,13 @@
 import { useCallback, useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 import Pantalla from "../componentes/Pantalla";
+import { claveToken as clave } from "../sesion";
 import {
   ErrorApi,
   llamarSiguiente,
   obtenerFila,
   type TurnoFila,
 } from "../api";
-
-const clave = (slug: string) => `token:${slug}`;
 
 export default function Panel() {
   const { slug = "" } = useParams();
