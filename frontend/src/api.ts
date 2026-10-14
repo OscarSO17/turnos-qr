@@ -10,13 +10,33 @@ export type Turno = {
   atendiendo_ahora: number | null;
 };
 
+export type TurnoFila = {
+  numero: number;
+  nombre_cliente: string | null;
+  estado: "esperando" | "atendiendo";
+  creado_en: string;
+};
+
+export class ErrorApi extends Error {
+  estado: number;
+
+  constructor(mensaje: string, estado: number) {
+    super(mensaje);
+    this.estado = estado;
+  }
+}
+
 async function pedir<T>(ruta: string, opciones?: RequestInit): Promise<T> {
   const respuesta = await fetch(`${API_URL}${ruta}`, opciones);
   const datos = await respuesta.json().catch(() => ({}));
   if (!respuesta.ok) {
-    throw new Error(datos.error ?? "Algo salió mal");
+    throw new ErrorApi(datos.error ?? "Algo salió mal", respuesta.status);
   }
   return datos as T;
+}
+
+function encabezadoDueno(token: string): HeadersInit {
+  return { Authorization: `Bearer ${token}` };
 }
 
 export const obtenerNegocio = (slug: string) =>
@@ -39,3 +59,17 @@ export const cancelarTurno = (codigo: string) =>
   pedir<{ estado: string }>(`/turnos/${encodeURIComponent(codigo)}/cancelar`, {
     method: "POST",
   });
+
+export const obtenerFila = (slug: string, token: string) =>
+  pedir<TurnoFila[]>(`/negocios/${encodeURIComponent(slug)}/fila`, {
+    headers: encabezadoDueno(token),
+  });
+
+export const llamarSiguiente = (slug: string, token: string) =>
+  pedir<{ atendiendo: { numero: number; nombre_cliente: string | null } | null }>(
+    `/negocios/${encodeURIComponent(slug)}/siguiente`,
+    {
+      method: "POST",
+      headers: encabezadoDueno(token),
+    }
+  );
