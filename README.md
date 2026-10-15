@@ -1,38 +1,103 @@
 # Turnos QR
 
-Sistema de turnos con código QR para negocios pequeños (sodas, barberías, clínicas), que evita filas desordenadas y le permite al cliente saber cuánto le falta.
+Una fila virtual para negocios pequeños. La idea es sencilla: el negocio pega un código QR en la pared, el cliente lo escanea con su celular, toma su turno y desde ahí ve cuántas personas tiene delante, sin instalar nada. Del otro lado, el dueño maneja la fila desde un panel y avanza con un solo botón.
 
-> Estado: en desarrollo.
+**Demo:** https://turnos-qr.vercel.app
 
-## Demo
-*(pendiente: enlace y capturas de pantalla)*
+## Está publicado y funcionando
 
-## El problema
-En muchos negocios pequeños los turnos se manejan "a ojo". Esto genera confusión sobre el orden y obliga al cliente a quedarse esperando sin saber cuánto falta.
+Todo el proyecto está desplegado en servicios con plan gratuito, así que se puede probar sin instalar nada. El frontend vive en Vercel, la API en Render y la base de datos en Neon.
 
-## Qué hace
-- El cliente escanea un QR y toma su turno desde el celular, sin instalar nada.
-- Ve cuántas personas hay antes que él, y la pantalla se actualiza sola.
-- El dueño del negocio ve la fila en un panel y avanza con el botón "Siguiente".
+Por ser planes gratuitos hay un detalle que conviene saber: el servidor de Render se duerme cuando pasa unos 15 minutos sin recibir visitas, y la primera petición después de eso tarda cerca de un minuto en despertarlo. Si la demo parece lenta al entrar, es por eso y no porque esté caída; después de ese primer momento responde con normalidad.
 
-## Tecnologías y por qué
-| Parte | Tecnología | Por qué |
-|---|---|---|
-| Frontend | React + Vite + Tailwind CSS | Muy usado en el mercado y rápido de desarrollar |
-| Backend | Node.js + Express + TypeScript | Mismo lenguaje que el frontend; TypeScript evita errores |
-| Base de datos | PostgreSQL | Relacional, gratuita y muy demandada |
-| Contenedores | Docker | Que funcione igual en cualquier computadora |
-| Despliegue | *(pendiente)* | |
+## Por qué lo hice
 
-## Arquitectura
+Quería un proyecto pequeño que pasara por todas las capas de un trabajo real: base de datos, API, interfaz, control de acceso y despliegue. Elegí un problema de todos los días, el de esperar turno en una soda, una barbería o una clínica, donde el orden casi siempre se resuelve "a ojo" y nadie sabe cuánto falta.
+
+## Probarlo en dos minutos
+
+1. Entra a la demo y crea un negocio. Guarda el código de administrador que aparece, porque no se vuelve a mostrar.
+2. Escanea el QR con tu celular y toma un turno.
+3. En el panel, presiona **Siguiente** y mira cómo cambia la pantalla del celular en unos segundos.
+
+## Cómo está armado
+
 ```mermaid
 flowchart LR
-  A[Cliente escanea QR] --> B[Frontend React]
-  E[Dueño del negocio] --> B
-  B --> C[API Node + Express]
-  C --> D[(PostgreSQL)]
+  C["Celular del cliente"] --> F["Frontend (React, Vercel)"]
+  D["Panel del dueño"] --> F
+  F -->|"HTTP + JSON"| A["API (Express, Render)"]
+  A --> B[("PostgreSQL (Neon)")]
 ```
+
+Cada negocio tiene su propia dirección (`/n/nombre-del-negocio`), que es la que lleva el QR. Cuando un cliente toma un turno recibe un código privado que queda en su dirección (`/turno/<código>`), y desde ahí ve su posición y puede cancelar. La pantalla se actualiza sola cada 5 segundos.
+
+## Decisiones técnicas
+
+**Los números de turno los protege la base de datos, no el código.** El siguiente número se calcula como el mayor del negocio más uno, pero si dos clientes piden turno al mismo tiempo, los dos calculan el mismo. Para que eso no genere turnos repetidos, la tabla tiene una restricción `UNIQUE (negocio_id, numero)`: solo uno de los dos entra, y el otro recibe un error de clave duplicada. En ese caso la API reintenta con el número siguiente, hasta 5 veces. La garantía no depende de que mi código sea perfecto, sino de una regla que la base de datos hace cumplir.
+
+```mermaid
+sequenceDiagram
+  participant A as Cliente A
+  participant B as Cliente B
+  participant API as API
+  participant BD as PostgreSQL
+  A->>API: Tomar turno
+  B->>API: Tomar turno
+  API->>BD: INSERT número 7 (A)
+  API->>BD: INSERT número 7 (B)
+  BD-->>API: OK (A)
+  BD-->>API: Error 23505, duplicado (B)
+  API->>BD: Reintenta con número 8 (B)
+  BD-->>API: OK (B)
+```
+
+**La posición en la fila se calcula, no se guarda.** Es la cantidad de turnos en estado `esperando` con un número menor al tuyo. Así, cuando alguien cancela, todos los que están detrás avanzan sin que haya que actualizar ninguna fila. Los números nunca se reutilizan: el turno 12 sigue siendo el 12 aunque el 11 cancele.
+
+**"Siguiente" corre dentro de una transacción con bloqueo.** Esa acción termina el turno actual y activa el siguiente, y tienen que pasar las dos cosas o ninguna. Además se bloquea la fila del negocio (`FOR UPDATE`) para que dos clics seguidos no se pisen y salten a alguien.
+
+**El dueño entra con un código, sin cuentas.** Al crear el negocio se genera un código aleatorio de 48 caracteres que se muestra una sola vez. En la base de datos solo se guarda su hash SHA-256, así que ver la tabla no sirve para entrar a ningún panel. El código viaja en el encabezado `Authorization` y el navegador lo recuerda en `localStorage`. Dejé las cuentas con inicio de sesión para más adelante; para un primer alcance, un código largo y aleatorio me pareció suficiente.
+
+**La pantalla consulta al servidor cada 5 segundos en lugar de usar WebSockets.** Es más simple de construir, de desplegar en un plan gratuito y de explicar, y para una fila de turnos unos segundos de diferencia no se notan. El costo es que hay tráfico de más cuando nada cambió.
+
+**Cancelar cambia el estado, no borra el turno.** El turno pasa a `cancelado` solo si seguía en `esperando`, y esa condición va dentro del propio `UPDATE`. Así, si un cliente cancela justo cuando el dueño lo está llamando, el turno no queda en un estado inconsistente. Conservar el historial también deja abierta la puerta a estadísticas, como los tiempos de espera.
+
+## Tecnologías
+
+| Tecnología | Para qué la uso |
+|---|---|
+| React | Construir las pantallas del cliente y del dueño |
+| Vite | Servidor de desarrollo y compilación del frontend |
+| TypeScript | Tipos en frontend y backend, para detectar errores antes de ejecutar |
+| Tailwind CSS | Estilos escritos directamente en los componentes |
+| React Router | Una dirección distinta para cada pantalla (negocio, turno, panel) |
+| qrcode.react | Generar el código QR de cada negocio en el navegador |
+| Node.js y Express | La API REST |
+| `pg` | Conexión y consultas a PostgreSQL (con consultas parametrizadas) |
+| `cors` y `dotenv` | Permitir solo al frontend llamar a la API, y leer la configuración desde variables de entorno |
+| PostgreSQL | Guardar negocios y turnos, y hacer cumplir las reglas de unicidad |
+| Neon | Base de datos PostgreSQL gestionada, plan gratuito |
+| Vercel | Publicar el frontend |
+| Render | Publicar la API |
+| Git y GitHub | Control de versiones; cada push a `main` despliega solo en Vercel y Render |
+
+## API
+
+| Método | Ruta | Acceso | Qué hace |
+|---|---|---|---|
+| POST | `/negocios` | Público | Crea un negocio y devuelve su código de administrador (una sola vez) |
+| GET | `/negocios/:slug` | Público | Datos públicos del negocio |
+| POST | `/negocios/:slug/turnos` | Público | Toma un turno; devuelve número y código privado |
+| GET | `/turnos/:codigo` | Código del turno | Estado, personas delante y turno en atención |
+| POST | `/turnos/:codigo/cancelar` | Código del turno | Cancela el turno si sigue esperando |
+| GET | `/negocios/:slug/fila` | Dueño | Turnos en espera y en atención |
+| POST | `/negocios/:slug/siguiente` | Dueño | Termina el turno actual y llama al siguiente |
+| GET | `/salud` y `/salud-bd` | Público | Comprueba que el servidor y la base de datos responden |
+
+Las rutas del dueño necesitan el encabezado `Authorization: Bearer <código de administrador>`.
+
 ## Modelo de datos
+
 ```mermaid
 erDiagram
   NEGOCIOS ||--o{ TURNOS : tiene
@@ -55,38 +120,74 @@ erDiagram
   }
 ```
 
-- Un negocio tiene muchos turnos; cada turno pertenece a un solo negocio.
-- La pareja (`negocio_id`, `numero`) es única, para que no se repitan números dentro de un negocio.
-- Estados de un turno: `esperando`, `atendiendo`, `terminado`, `cancelado`.
-- `codigo` es un código privado del cliente, necesario para cancelar su propio turno.
-- La posición en la fila no se guarda: se calcula contando los turnos `esperando` con número menor.
+`token_admin` guarda el hash del código del dueño. `estado` solo admite `esperando`, `atendiendo`, `terminado` y `cancelado`. El esquema completo está en [`backend/db/schema.sql`](backend/db/schema.sql).
 
-## Estructura del proyecto
-Estructura planeada, se irá creando paso a paso:
+## Estructura del repositorio
+
 ```
 turnos-qr/
-├── backend/    # API y lógica del servidor
-├── frontend/   # Interfaz web (cliente y panel)
-├── docs/       # Diagramas y documentación
-└── README.md
+├── backend/
+│   ├── db/schema.sql
+│   └── src/
+│       ├── index.ts
+│       ├── db.ts
+│       ├── middleware/autenticarDueno.ts
+│       └── rutas/
+│           ├── negocios.ts
+│           └── turnos.ts
+└── frontend/
+    ├── vercel.json
+    └── src/
+        ├── api.ts
+        ├── sesion.ts
+        ├── componentes/Pantalla.tsx
+        └── paginas/
+            ├── Inicio.tsx
+            ├── TomarTurno.tsx
+            ├── MiTurno.tsx
+            └── Panel.tsx
 ```
 
-## Cómo correrlo en local
-*(pendiente: requisitos, instalación y comandos)*
+## Correrlo en local
 
-## Pruebas
-*(pendiente)*
+Necesitas Node.js 20.19 o superior (lo probé con la 24), Git y una base de datos PostgreSQL. Yo uso Neon, que tiene plan gratuito.
 
-## Despliegue
-*(pendiente)*
+1. Clona el repositorio:
+```
+   git clone https://github.com/OscarSO17/turnos-qr.git
+   cd turnos-qr
+```
+2. Crea las tablas ejecutando el contenido de `backend/db/schema.sql` en tu base de datos.
+3. Backend:
+```
+   cd backend
+   npm install
+```
+   Copia `.env.example` a `.env`, completa los valores y arranca:
+```
+   npm run dev
+```
+4. Frontend, en otra terminal:
+```
+   cd frontend
+   npm install
+```
+   Copia `.env.example` a `.env` y arranca:
+```
+   npm run dev
+```
 
-## Decisiones técnicas
-*(pendiente: iré anotando aquí por qué elegí cada cosa)*
+Variables de entorno:
 
-## Mejoras futuras
-- Notificación cuando falten pocos turnos
-- Soporte para varios negocios con su propia cuenta
-- Tiempo estimado de espera
-- Ver el menú o los servicios del negocio mientras se espera
-- Aviso cuando falten pocos turnos
-- Cuentas con inicio de sesión para los dueños
+| Variable | Dónde | Descripción |
+|---|---|---|
+| `DATABASE_URL` | Backend | Cadena de conexión a PostgreSQL |
+| `FRONTEND_URL` | Backend | Origen permitido por CORS. Por defecto `http://localhost:5173` |
+| `PORT` | Backend | Puerto del servidor. Por defecto 3000 |
+| `VITE_API_URL` | Frontend | Dirección del backend. En local, `http://localhost:3000` |
+
+## Limitaciones conocidas y lo que sigue
+
+Todavía no tiene pruebas automatizadas. Es lo primero que quiero agregar, empezando por el caso de dos clientes pidiendo turno al mismo tiempo, que es la parte más delicada. Tampoco hay Docker ni integración continua: hoy el despliegue lo hacen Vercel y Render al recibir un push.
+
+Hay cosas que dejé simples a propósito. Cualquiera puede crear negocios, sin límite de peticiones ni verificación. El nombre del negocio define su dirección, así que dos negocios no pueden llamarse igual. Si el dueño pierde su código no hay forma de recuperarlo, algo que se resolvería con cuentas de usuario. La numeración no se reinicia cada día. El entorno de desarrollo y la demo comparten la misma base de datos. Y no hay tiempo estimado de espera ni avisos al celular: la pantalla solo se actualiza si está abierta.
