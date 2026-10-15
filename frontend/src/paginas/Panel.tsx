@@ -1,11 +1,13 @@
 import { useCallback, useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 import Pantalla from "../componentes/Pantalla";
+import ModalQR from "../componentes/ModalQR";
 import { claveToken as clave } from "../sesion";
 import {
   ErrorApi,
   llamarSiguiente,
   obtenerFila,
+  obtenerNegocio,
   type TurnoFila,
 } from "../api";
 
@@ -18,6 +20,8 @@ export default function Panel() {
   const [fila, setFila] = useState<TurnoFila[]>([]);
   const [error, setError] = useState("");
   const [ocupado, setOcupado] = useState(false);
+  const [verQR, setVerQR] = useState(false);
+  const [nombreNegocio, setNombreNegocio] = useState("");
 
   const cargar = useCallback(async () => {
     if (!token) return;
@@ -40,6 +44,12 @@ export default function Panel() {
     const id = setInterval(cargar, 5000);
     return () => clearInterval(id);
   }, [cargar]);
+
+  useEffect(() => {
+    obtenerNegocio(slug)
+      .then((negocio) => setNombreNegocio(negocio.nombre))
+      .catch(() => {});
+  }, [slug]);
 
   function entrar() {
     const limpio = entrada.trim();
@@ -99,8 +109,8 @@ export default function Panel() {
   return (
     <Pantalla>
       <h1 className="text-xl font-bold text-slate-800">Panel del negocio</h1>
-      <p className="text-sm text-slate-500">{slug}</p>
-
+      <p className="text-sm text-slate-500">{nombreNegocio || slug}</p>
+      
       <div className="mt-6 rounded-xl bg-indigo-50 p-4">
         <p className="text-xs uppercase tracking-wide text-indigo-400">
           Atendiendo ahora
@@ -145,12 +155,24 @@ export default function Panel() {
         </ul>
       )}
 
-      <button
-        onClick={salir}
-        className="mt-6 text-xs text-slate-400 underline"
-      >
-        Salir
-      </button>
+      <div className="mt-6 flex items-center justify-between">
+        <button
+          onClick={() => setVerQR(true)}
+          className="text-sm text-indigo-600 underline"
+        >
+          Ver QR
+        </button>
+        <button onClick={salir} className="text-xs text-slate-400 underline">
+          Salir
+        </button>
+      </div>
+
+      <ModalQR
+        abierto={verQR}
+        onCerrar={() => setVerQR(false)}
+        nombre={nombreNegocio || slug}
+        slug={slug}
+      />
 
       {error && <p className="mt-3 text-sm text-red-600">{error}</p>}
     </Pantalla>

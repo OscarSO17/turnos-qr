@@ -16,7 +16,7 @@ Quería un proyecto pequeño que pasara por todas las capas de un trabajo real: 
 
 ## Probarlo en dos minutos
 
-1. Entra a la demo y crea un negocio. Guarda el código de administrador que aparece, porque no se vuelve a mostrar.
+1. Entra a la demo y crea un negocio. Guarda el código de administrador que aparece: no se vuelve a mostrar y no hay forma de recuperarlo. El QR, en cambio, puedes volver a abrirlo y descargarlo cuando quieras desde el panel.
 2. Escanea el QR con tu celular y toma un turno.
 3. En el panel, presiona **Siguiente** y mira cómo cambia la pantalla del celular en unos segundos.
 
