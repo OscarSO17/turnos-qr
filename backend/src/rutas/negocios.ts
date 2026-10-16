@@ -2,6 +2,11 @@ import { Router } from "express";
 import { createHash, randomBytes } from "node:crypto";
 import { pool } from "../db";
 import { autenticarDueno } from "../middleware/autenticarDueno";
+import {
+  limiteCrearNegocio,
+  limiteErroresDueno,
+  limiteTomarTurno,
+} from "../middleware/limites";
 
 const router = Router();
 
@@ -14,7 +19,7 @@ function crearSlug(nombre: string): string {
     .replace(/^-+|-+$/g, "");
 }
 
-router.post("/", async (req, res) => {
+router.post("/", limiteCrearNegocio, async (req, res) => {
   const nombre =
     typeof req.body?.nombre === "string" ? req.body.nombre.trim() : "";
 
@@ -69,7 +74,7 @@ router.get("/:slug", async (req, res) => {
   }
 });
 
-router.post("/:slug/turnos", async (req, res) => {
+router.post("/:slug/turnos", limiteTomarTurno, async (req, res) => {
   const nombreCliente =
     typeof req.body?.nombre_cliente === "string" &&
     req.body.nombre_cliente.trim() !== ""
@@ -117,7 +122,7 @@ router.post("/:slug/turnos", async (req, res) => {
   }
 });
 
-router.get("/:slug/fila", autenticarDueno, async (_req, res) => {
+router.get("/:slug/fila", limiteErroresDueno, autenticarDueno, async (_req, res) => {
   try {
     const resultado = await pool.query(
       `SELECT numero, nombre_cliente, estado, creado_en
@@ -133,7 +138,7 @@ router.get("/:slug/fila", autenticarDueno, async (_req, res) => {
   }
 });
 
-router.post("/:slug/siguiente", autenticarDueno, async (_req, res) => {
+router.post("/:slug/siguiente", limiteErroresDueno, autenticarDueno, async (_req, res) => {
   const cliente = await pool.connect();
   try {
     await cliente.query("BEGIN");

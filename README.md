@@ -38,6 +38,8 @@ Cada negocio tiene su propia dirección (`/n/nombre-del-negocio`), que es la que
 
 **Los números de turno los protege la base de datos, no el código.** El siguiente número se calcula como el mayor del negocio más uno, pero si dos clientes piden turno al mismo tiempo, los dos calculan el mismo. Para que eso no genere turnos repetidos, la tabla tiene una restricción `UNIQUE (negocio_id, numero)`: solo uno de los dos entra, y el otro recibe un error de clave duplicada. En ese caso la API reintenta con el número siguiente, hasta 5 veces. La garantía no depende de que mi código sea perfecto, sino de una regla que la base de datos hace cumplir.
 
+**Los límites de peticiones solo cubren lo que escribe.** Crear negocios (5 por hora), pedir turnos (30 cada 10 minutos) y los intentos fallidos con el código del dueño (10 cada 15 minutos) tienen límite por IP. Las consultas de lectura, como las que hace la pantalla cada 5 segundos, no lo tienen a propósito: los clientes de un mismo negocio suelen compartir Wi-Fi y, por lo tanto, IP, así que un límite general bloquearía a gente legítima. Como la API corre detrás del proxy de Render, usa `trust proxy` para leer la IP real de cada cliente.
+
 ```mermaid
 sequenceDiagram
   participant A as Cliente A
@@ -79,6 +81,7 @@ sequenceDiagram
 | Node.js y Express | La API REST |
 | `pg` | Conexión y consultas a PostgreSQL (con consultas parametrizadas) |
 | `cors` y `dotenv` | Permitir solo al frontend llamar a la API, y leer la configuración desde variables de entorno |
+| `express-rate-limit` | Limitar por IP la creación de negocios, los turnos y los intentos fallidos del dueño |
 | PostgreSQL | Guardar negocios y turnos, y hacer cumplir las reglas de unicidad |
 | Neon | Base de datos PostgreSQL gestionada, plan gratuito |
 | Vercel | Publicar el frontend |
@@ -189,11 +192,12 @@ Variables de entorno:
 | `FRONTEND_URL` | Backend | Origen permitido por CORS. Por defecto `http://localhost:5173` |
 | `PORT` | Backend | Puerto del servidor. Por defecto 3000 |
 | `VITE_API_URL` | Frontend | Dirección del backend. En local, `http://localhost:3000` |
+| `DESACTIVAR_LIMITES` | Backend | Con valor `1` desactiva los límites de peticiones. Solo para desarrollo |
 
 ## Limitaciones conocidas y lo que sigue
 
 Todavía no tiene pruebas automatizadas. Es lo primero que quiero agregar, empezando por el caso de dos clientes pidiendo turno al mismo tiempo, que es la parte más delicada. Tampoco hay Docker ni integración continua: hoy el despliegue lo hacen Vercel y Render al recibir un push.
 
-Hay cosas que dejé simples a propósito. Cualquiera puede crear negocios, sin límite de peticiones ni verificación. El nombre del negocio define su dirección, así que dos negocios no pueden llamarse igual. Si el dueño pierde su código no hay forma de recuperarlo, algo que se resolvería con cuentas de usuario. La numeración no se reinicia cada día. El entorno de desarrollo y la demo comparten la misma base de datos. Y no hay tiempo estimado de espera ni avisos al celular: la pantalla solo se actualiza si está abierta.
+Hay cosas que dejé simples a propósito. Los límites de peticiones se guardan en memoria, así que se reinician cuando el servicio duerme o se vuelve a desplegar, y no hay verificación humana (captcha). El nombre del negocio define su dirección, así que dos negocios no pueden llamarse igual. Si el dueño pierde su código no hay forma de recuperarlo, algo que se resolvería con cuentas de usuario. La numeración no se reinicia cada día. El entorno de desarrollo y la demo comparten la misma base de datos. Y no hay tiempo estimado de espera ni avisos al celular: la pantalla solo se actualiza si está abierta.
 
 El turno se recuerda por navegador: si el cliente cambia de celular o borra los datos del navegador, deja de verlo, aunque su lugar en la fila se mantiene hasta que el dueño lo llame.
