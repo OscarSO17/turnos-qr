@@ -10,6 +10,8 @@ Todo el proyecto está desplegado en servicios con plan gratuito, así que se pu
 
 Por ser planes gratuitos hay un detalle que conviene saber: el servidor de Render se duerme cuando pasa unos 15 minutos sin recibir visitas, y la primera petición después de eso tarda cerca de un minuto en despertarlo. Si la demo parece lenta al entrar, es por eso y no porque esté caída; después de ese primer momento responde con normalidad.
 
+Para que nadie piense que se rompió, la interfaz muestra un aviso cuando una petición tarda más de 4 segundos.
+
 ## Por qué lo hice
 
 Quería un proyecto pequeño que pasara por todas las capas de un trabajo real: base de datos, API, interfaz, control de acceso y despliegue. Elegí un problema de todos los días, el de esperar turno en una soda, una barbería o una clínica, donde el orden casi siempre se resuelve "a ojo" y nadie sabe cuánto falta.

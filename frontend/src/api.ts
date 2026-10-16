@@ -26,13 +26,41 @@ export class ErrorApi extends Error {
   }
 }
 
+// Cuántas peticiones llevan más de 4 segundos sin respuesta.
+let lentas = 0;
+
+function cambiarLentas(cambio: number) {
+  lentas += cambio;
+  window.dispatchEvent(new CustomEvent("api-lentas", { detail: lentas }));
+}
+
 async function pedir<T>(ruta: string, opciones?: RequestInit): Promise<T> {
-  const respuesta = await fetch(`${API_URL}${ruta}`, opciones);
-  const datos = await respuesta.json().catch(() => ({}));
-  if (!respuesta.ok) {
-    throw new ErrorApi(datos.error ?? "Algo salió mal", respuesta.status);
+  let marcada = false;
+  const temporizador = setTimeout(() => {
+    marcada = true;
+    cambiarLentas(1);
+  }, 4000);
+
+  try {
+    let respuesta: Response;
+    try {
+      respuesta = await fetch(`${API_URL}${ruta}`, opciones);
+    } catch {
+      throw new ErrorApi(
+        "No pudimos conectarnos con el servidor. Revisa tu conexión e inténtalo de nuevo.",
+        0
+      );
+    }
+
+    const datos = await respuesta.json().catch(() => ({}));
+    if (!respuesta.ok) {
+      throw new ErrorApi(datos.error ?? "Algo salió mal", respuesta.status);
+    }
+    return datos as T;
+  } finally {
+    clearTimeout(temporizador);
+    if (marcada) cambiarLentas(-1);
   }
-  return datos as T;
 }
 
 function encabezadoDueno(token: string): HeadersInit {
