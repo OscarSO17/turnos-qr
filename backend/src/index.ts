@@ -6,7 +6,7 @@ import turnosRouter from "./rutas/turnos";
 import cors from "cors";
 
 const app = express();
-app.set("trust proxy", 1);
+app.set("trust proxy", 3);
 const PUERTO = Number(process.env.PORT) || 3000;
 
 app.use(cors({ origin: process.env.FRONTEND_URL ?? "http://localhost:5173" }));
