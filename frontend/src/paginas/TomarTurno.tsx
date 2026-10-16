@@ -1,7 +1,14 @@
 import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import Pantalla from "../componentes/Pantalla";
-import { obtenerNegocio, tomarTurno, type Negocio } from "../api";
+import {
+  ErrorApi,
+  obtenerNegocio,
+  obtenerTurno,
+  tomarTurno,
+  type Negocio,
+} from "../api";
+import { claveTurno } from "../sesion";
 
 export default function TomarTurno() {
   const { slug = "" } = useParams();
@@ -12,16 +19,49 @@ export default function TomarTurno() {
   const [enviando, setEnviando] = useState(false);
 
   useEffect(() => {
-    obtenerNegocio(slug)
-      .then(setNegocio)
-      .catch((e: Error) => setError(e.message));
-  }, [slug]);
+    let activo = true;
+
+    async function iniciar() {
+      try {
+        const guardado = localStorage.getItem(claveTurno(slug));
+
+        if (guardado) {
+          try {
+            const turno = await obtenerTurno(guardado);
+            if (turno.estado === "esperando" || turno.estado === "atendiendo") {
+              if (activo) navegar(`/turno/${guardado}`, { replace: true });
+              return;
+            }
+            // El turno ya terminó o se canceló: lo olvidamos.
+            localStorage.removeItem(claveTurno(slug));
+          } catch (e) {
+            if (e instanceof ErrorApi && e.estado === 404) {
+              localStorage.removeItem(claveTurno(slug));
+            } else {
+              throw e;
+            }
+          }
+        }
+
+        const datos = await obtenerNegocio(slug);
+        if (activo) setNegocio(datos);
+      } catch (e) {
+        if (activo) setError((e as Error).message);
+      }
+    }
+
+    iniciar();
+    return () => {
+      activo = false;
+    };
+  }, [slug, navegar]);
 
   async function manejarClic() {
     setEnviando(true);
     setError("");
     try {
       const turno = await tomarTurno(slug, nombre.trim());
+      localStorage.setItem(claveTurno(slug), turno.codigo);
       navegar(`/turno/${turno.codigo}`);
     } catch (e) {
       setError((e as Error).message);

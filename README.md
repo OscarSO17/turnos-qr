@@ -62,6 +62,8 @@ sequenceDiagram
 
 **Cancelar cambia el estado, no borra el turno.** El turno pasa a `cancelado` solo si seguía en `esperando`, y esa condición va dentro del propio `UPDATE`. Así, si un cliente cancela justo cuando el dueño lo está llamando, el turno no queda en un estado inconsistente. Conservar el historial también deja abierta la puerta a estadísticas, como los tiempos de espera.
 
+**El cliente no pierde su turno si cierra la pestaña.** Al tomar un turno, el código se guarda en el navegador (`localStorage`). Cuando alguien abre la dirección de un negocio, la app consulta primero si ya tiene un turno vigente ahí: si sigue esperando o en atención, lo lleva directo a su pantalla; si ya terminó, se canceló o no existe, lo olvida y muestra el formulario. Si la consulta falla por un error de red o del servidor, no se borra nada, porque no hay forma de saber si el turno sigue vigente. La consecuencia es que en un mismo navegador no puede haber dos turnos activos del mismo negocio.
+
 ## Tecnologías
 
 | Tecnología | Para qué la uso |
@@ -191,3 +193,5 @@ Variables de entorno:
 Todavía no tiene pruebas automatizadas. Es lo primero que quiero agregar, empezando por el caso de dos clientes pidiendo turno al mismo tiempo, que es la parte más delicada. Tampoco hay Docker ni integración continua: hoy el despliegue lo hacen Vercel y Render al recibir un push.
 
 Hay cosas que dejé simples a propósito. Cualquiera puede crear negocios, sin límite de peticiones ni verificación. El nombre del negocio define su dirección, así que dos negocios no pueden llamarse igual. Si el dueño pierde su código no hay forma de recuperarlo, algo que se resolvería con cuentas de usuario. La numeración no se reinicia cada día. El entorno de desarrollo y la demo comparten la misma base de datos. Y no hay tiempo estimado de espera ni avisos al celular: la pantalla solo se actualiza si está abierta.
+
+El turno se recuerda por navegador: si el cliente cambia de celular o borra los datos del navegador, deja de verlo, aunque su lugar en la fila se mantiene hasta que el dueño lo llame.
