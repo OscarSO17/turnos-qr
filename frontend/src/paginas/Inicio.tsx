@@ -1,11 +1,15 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import { QRCodeSVG } from "qrcode.react";
+import Boleto from "../componentes/Boleto";
 import Pantalla from "../componentes/Pantalla";
 import { crearNegocio } from "../api";
 import { claveToken } from "../sesion";
 
 type Creado = { nombre: string; slug: string; token: string };
+
+const claseEtiqueta =
+  "font-numero text-[0.7rem] uppercase tracking-[0.3em] text-tinta-suave";
 
 export default function Inicio() {
   const [nombre, setNombre] = useState("");
@@ -51,30 +55,36 @@ export default function Inicio() {
   if (!creado) {
     return (
       <Pantalla>
-        <h1 className="text-2xl font-bold text-slate-800">Turnos QR</h1>
-        <p className="mt-2 text-slate-500">
-          Crea tu negocio y obtén un QR para que tus clientes tomen turno desde
-          el celular.
-        </p>
-        <input
-          type="text"
-          value={nombre}
-          onChange={(e) => setNombre(e.target.value)}
-          placeholder="Nombre de tu negocio"
-          maxLength={80}
-          className="mt-6 w-full rounded-lg border border-slate-300 px-3 py-2 text-slate-800"
-        />
-        <button
-          onClick={crear}
-          disabled={enviando}
-          className="mt-4 w-full rounded-lg bg-indigo-600 px-4 py-3 font-semibold text-white hover:bg-indigo-700 disabled:opacity-50"
-        >
-          {enviando ? "Creando..." : "Crear mi negocio"}
-        </button>
-        {error && <p className="mt-3 text-sm text-red-600">{error}</p>}
-        <p className="mt-6 text-xs text-slate-400">
-          ¿Eres cliente? Escanea el QR que está en el negocio.
-        </p>
+        <Boleto etiqueta="Turnos QR" titulo="Tu fila virtual">
+          <p className="text-sm text-tinta-suave">
+            Crea tu negocio, imprime el QR y deja que tus clientes tomen turno
+            desde el celular.
+          </p>
+
+          <input
+            type="text"
+            value={nombre}
+            onChange={(e) => setNombre(e.target.value)}
+            onKeyDown={(e) => e.key === "Enter" && crear()}
+            placeholder="Nombre de tu negocio"
+            maxLength={80}
+            className="mt-5 w-full rounded-md border border-linea bg-papel px-3 py-2.5 text-center placeholder:text-tinta-suave/70 focus:border-acento focus:outline-none"
+          />
+
+          <button
+            onClick={crear}
+            disabled={enviando}
+            className="mt-3 w-full rounded-md bg-acento px-4 py-3 font-semibold tracking-wide text-white transition-colors hover:bg-acento-oscuro disabled:opacity-50"
+          >
+            {enviando ? "Creando..." : "Crear mi negocio"}
+          </button>
+
+          {error && <p className="mt-3 text-sm text-acento-oscuro">{error}</p>}
+
+          <p className="mt-6 text-xs text-tinta-suave">
+            ¿Eres cliente? Escanea el QR que está en el negocio.
+          </p>
+        </Boleto>
       </Pantalla>
     );
   }
@@ -83,50 +93,61 @@ export default function Inicio() {
 
   return (
     <Pantalla>
-      <h1 className="text-xl font-bold text-slate-800 print:text-4xl">{creado.nombre}</h1>
-      <p className="print:hidden mt-1 text-sm text-slate-500">
+      <p className={`print:hidden ${claseEtiqueta}`}>Negocio creado</p>
+      <h1 className="mt-2 font-titulo text-3xl leading-tight print:text-5xl">
+        {creado.nombre}
+      </h1>
+      <p className="mt-2 text-sm text-tinta-suave print:hidden">
         Imprime este QR y pégalo donde tus clientes lo vean.
       </p>
 
-      <div className="mt-4 flex justify-center">
-        <QRCodeSVG value={enlaceClientes} size={200} className="print:size-[14cm]"/>
+      <div className="mt-6 flex justify-center">
+        <div className="rounded-md border border-linea bg-white p-4 print:border-0 print:p-0">
+          <QRCodeSVG
+            value={enlaceClientes}
+            size={200}
+            className="print:size-[14cm]"
+          />
+        </div>
       </div>
-      <p className="print:hidden mt-2 break-all text-xs text-slate-400">{enlaceClientes}</p>
+
+      <p className="mt-3 break-all font-numero text-xs text-tinta-suave print:hidden">
+        {enlaceClientes}
+      </p>
 
       <button
         onClick={() => window.print()}
-        className="print:hidden mt-4 w-full rounded-lg border border-slate-300 px-4 py-2 text-slate-700 hover:bg-slate-50"
+        className="mt-4 w-full rounded-md border border-linea px-4 py-2.5 transition-colors hover:bg-boleto print:hidden"
       >
         Imprimir QR
       </button>
 
-      <div className="print:hidden mt-6 rounded-xl border border-amber-200 bg-amber-50 p-4 text-left">
-        <p className="text-sm font-semibold text-amber-800">
-          Tu código de administrador
-        </p>
-        <p className="mt-1 break-all font-mono text-xs text-slate-700">
-          {creado.token}
-        </p>
+      <div className="mt-6 rounded-md border border-acento/40 bg-boleto p-4 text-left print:hidden">
+        <p className={claseEtiqueta}>Tu código de administrador</p>
+        <p className="mt-2 break-all font-numero text-xs">{creado.token}</p>
         <button
           onClick={copiar}
-          className="mt-3 rounded-lg bg-amber-600 px-3 py-1 text-sm font-semibold text-white hover:bg-amber-700"
+          className="mt-3 rounded-md bg-tinta px-3 py-1.5 text-sm font-semibold text-papel transition-colors hover:bg-tinta/85"
         >
           {copiado ? "¡Copiado!" : "Copiar código"}
         </button>
-        <p className="mt-2 text-xs text-amber-700">
-          Guárdalo en un lugar seguro. No se vuelve a mostrar y lo necesitas
-          para entrar al panel desde otro dispositivo.
+        <p className="mt-3 text-xs text-tinta-suave">
+          Guárdalo en un lugar seguro. No se vuelve a mostrar y no hay forma de
+          recuperarlo; lo necesitas para entrar al panel desde otro
+          dispositivo.
         </p>
       </div>
 
       <Link
         to={`/panel/${creado.slug}`}
-        className="print:hidden mt-6 block w-full rounded-lg bg-indigo-600 px-4 py-3 font-semibold text-white hover:bg-indigo-700"
+        className="mt-6 block w-full rounded-md bg-acento px-4 py-3 font-semibold tracking-wide text-white transition-colors hover:bg-acento-oscuro print:hidden"
       >
         Ir a mi panel
       </Link>
 
-      {error && <p className="mt-3 text-sm text-red-600">{error}</p>}
+      {error && (
+        <p className="mt-3 text-sm text-acento-oscuro print:hidden">{error}</p>
+      )}
     </Pantalla>
   );
 }

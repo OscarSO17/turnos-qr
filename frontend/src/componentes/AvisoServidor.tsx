@@ -15,7 +15,7 @@ export default function AvisoServidor() {
   return (
     <div
       role="status"
-      className="print:hidden fixed inset-x-0 top-0 z-50 bg-amber-100 px-4 py-2 text-center text-sm text-amber-900"
+      className="print:hidden fixed inset-x-0 top-0 z-50 bg-tinta px-4 py-2 text-center text-sm text-papel"
     >
       El servidor se está iniciando en segundo plano y puede tardar hasta un minuto. No cierres
       esta pantalla.

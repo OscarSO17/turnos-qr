@@ -19,10 +19,13 @@ function App() {
           path="*"
           element={
             <Pantalla>
-              <h1 className="text-xl font-bold text-slate-800">
+              <h1 className="font-titulo text-3xl leading-tight">
                 Página no encontrada
               </h1>
-              <Link to="/" className="mt-4 block text-indigo-600 underline">
+              <Link
+                to="/"
+                className="mt-4 inline-block text-acento underline underline-offset-4"
+              >
                 Volver al inicio
               </Link>
             </Pantalla>

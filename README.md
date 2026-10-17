@@ -40,6 +40,8 @@ Cada negocio tiene su propia dirección (`/n/nombre-del-negocio`), que es la que
 
 **Los límites de peticiones solo cubren lo que escribe.** Crear negocios (5 por hora), pedir turnos (30 cada 10 minutos) y los intentos fallidos con el código del dueño (10 cada 15 minutos) tienen límite por IP. Las consultas de lectura, como las que hace la pantalla cada 5 segundos, no lo tienen a propósito: los clientes de un mismo negocio suelen compartir Wi-Fi y, por lo tanto, IP, así que un límite general bloquearía a gente legítima. Como la API corre detrás del proxy de Render, usa `trust proxy` para leer la IP real de cada cliente.
 
+**La interfaz parte de una idea: el turno es un boleto.** Fondo de papel cálido, texto en tinta oscura y un solo acento terracota apagado, con Fraunces para los títulos y DM Mono para los números, como en las máquinas de turnos. Los colores y las fuentes se definen una sola vez en el tema de Tailwind, así que cambiar la paleta toca un único archivo. Las fuentes se sirven desde el propio sitio con Fontsource, sin depender de un servicio externo. El panel del dueño aprovecha el ancho de la pantalla porque se usa en una computadora o tablet detrás del mostrador; las pantallas del cliente están pensadas para el celular.
+
 ```mermaid
 sequenceDiagram
   participant A as Cliente A
@@ -76,6 +78,7 @@ sequenceDiagram
 | Vite | Servidor de desarrollo y compilación del frontend |
 | TypeScript | Tipos en frontend y backend, para detectar errores antes de ejecutar |
 | Tailwind CSS | Estilos escritos directamente en los componentes |
+| Fontsource | Servir las fuentes Fraunces y DM Mono desde el propio sitio |
 | React Router | Una dirección distinta para cada pantalla (negocio, turno, panel) |
 | qrcode.react | Generar el código QR de cada negocio en el navegador |
 | Node.js y Express | La API REST |

@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
-import Pantalla from "../componentes/Pantalla";
+import Boleto from "../componentes/Boleto";
 import ModalQR from "../componentes/ModalQR";
-import { claveToken as clave } from "../sesion";
+import Pantalla from "../componentes/Pantalla";
 import {
   ErrorApi,
   llamarSiguiente,
@@ -10,6 +10,10 @@ import {
   obtenerNegocio,
   type TurnoFila,
 } from "../api";
+import { claveToken as clave } from "../sesion";
+
+const claseEtiqueta =
+  "font-numero text-[0.7rem] uppercase tracking-[0.3em] text-tinta-suave";
 
 export default function Panel() {
   const { slug = "" } = useParams();
@@ -81,24 +85,26 @@ export default function Panel() {
   if (!token) {
     return (
       <Pantalla>
-        <h1 className="text-xl font-bold text-slate-800">Panel del negocio</h1>
-        <p className="mt-2 text-sm text-slate-500">
-          Ingresa tu código de administrador.
-        </p>
-        <input
-          type="password"
-          value={entrada}
-          onChange={(e) => setEntrada(e.target.value)}
-          placeholder="Código de administrador"
-          className="mt-6 w-full rounded-lg border border-slate-300 px-3 py-2 text-slate-800"
-        />
-        <button
-          onClick={entrar}
-          className="mt-4 w-full rounded-lg bg-indigo-600 px-4 py-3 font-semibold text-white hover:bg-indigo-700"
-        >
-          Entrar
-        </button>
-        {error && <p className="mt-3 text-sm text-red-600">{error}</p>}
+        <Boleto etiqueta="Panel" titulo="Acceso del negocio">
+          <p className="text-sm text-tinta-suave">
+            Ingresa tu código de administrador.
+          </p>
+          <input
+            type="password"
+            value={entrada}
+            onChange={(e) => setEntrada(e.target.value)}
+            onKeyDown={(e) => e.key === "Enter" && entrar()}
+            placeholder="Código de administrador"
+            className="mt-5 w-full rounded-md border border-linea bg-papel px-3 py-2.5 text-center placeholder:text-tinta-suave/70 focus:border-acento focus:outline-none"
+          />
+          <button
+            onClick={entrar}
+            className="mt-3 w-full rounded-md bg-acento px-4 py-3 font-semibold tracking-wide text-white transition-colors hover:bg-acento-oscuro"
+          >
+            Entrar
+          </button>
+          {error && <p className="mt-3 text-sm text-acento-oscuro">{error}</p>}
+        </Boleto>
       </Pantalla>
     );
   }
@@ -107,65 +113,76 @@ export default function Panel() {
   const esperando = fila.filter((t) => t.estado === "esperando");
 
   return (
-    <Pantalla>
-      <h1 className="text-xl font-bold text-slate-800">Panel del negocio</h1>
-      <p className="text-sm text-slate-500">{nombreNegocio || slug}</p>
-      
-      <div className="mt-6 rounded-xl bg-indigo-50 p-4">
-        <p className="text-xs uppercase tracking-wide text-indigo-400">
-          Atendiendo ahora
-        </p>
-        <p className="text-4xl font-bold text-indigo-600">
-          {atendiendo ? atendiendo.numero : "—"}
-        </p>
-        {atendiendo?.nombre_cliente && (
-          <p className="text-sm text-slate-600">{atendiendo.nombre_cliente}</p>
-        )}
+    <Pantalla ancho>
+      <header className="flex flex-wrap items-end justify-between gap-3 border-b border-linea pb-4 text-left">
+        <div>
+          <p className={claseEtiqueta}>Panel</p>
+          <h1 className="mt-1 font-titulo text-3xl leading-tight">
+            {nombreNegocio || slug}
+          </h1>
+        </div>
+        <div className="flex items-center gap-5 text-sm">
+          <button
+            onClick={() => setVerQR(true)}
+            className="underline underline-offset-4 hover:text-acento"
+          >
+            Ver QR
+          </button>
+          <button
+            onClick={salir}
+            className="text-tinta-suave underline underline-offset-4 hover:text-acento"
+          >
+            Salir
+          </button>
+        </div>
+      </header>
+
+      <div className="mt-6 grid gap-6 text-left md:grid-cols-2">
+        <section className="rounded-md border border-linea bg-boleto p-6 text-center">
+          <p className={claseEtiqueta}>Atendiendo ahora</p>
+          <p className="mt-2 font-numero text-8xl font-medium leading-none">
+            {atendiendo ? atendiendo.numero : "—"}
+          </p>
+          <p className="mt-2 min-h-6 text-sm text-tinta-suave">
+            {atendiendo?.nombre_cliente ?? ""}
+          </p>
+
+          <button
+            onClick={siguiente}
+            disabled={ocupado || (!atendiendo && esperando.length === 0)}
+            className="mt-4 w-full rounded-md bg-acento px-4 py-3 font-semibold tracking-wide text-white transition-colors hover:bg-acento-oscuro disabled:opacity-40"
+          >
+            {esperando.length > 0
+              ? "Siguiente"
+              : atendiendo
+                ? "Terminar turno actual"
+                : "Sin turnos en espera"}
+          </button>
+        </section>
+
+        <section>
+          <h2 className={claseEtiqueta}>En espera ({esperando.length})</h2>
+          {esperando.length === 0 ? (
+            <p className="mt-4 text-tinta-suave">No hay nadie esperando.</p>
+          ) : (
+            <ul className="mt-2">
+              {esperando.map((t) => (
+                <li
+                  key={t.numero}
+                  className="flex items-baseline justify-between gap-4 border-b border-linea py-3"
+                >
+                  <span className="font-numero text-xl">{t.numero}</span>
+                  <span className="text-tinta-suave">
+                    {t.nombre_cliente ?? "Sin nombre"}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </section>
       </div>
 
-      <button
-        onClick={siguiente}
-        disabled={ocupado || (!atendiendo && esperando.length === 0)}
-        className="mt-4 w-full rounded-lg bg-indigo-600 px-4 py-3 font-semibold text-white hover:bg-indigo-700 disabled:opacity-50"
-      >
-        {esperando.length > 0
-          ? "Siguiente"
-          : atendiendo
-            ? "Terminar turno actual"
-            : "Sin turnos en espera"}
-      </button>
-
-      <h2 className="mt-6 text-left text-sm font-semibold text-slate-600">
-        En espera ({esperando.length})
-      </h2>
-      {esperando.length === 0 ? (
-        <p className="mt-2 text-left text-sm text-slate-400">
-          No hay nadie esperando.
-        </p>
-      ) : (
-        <ul className="mt-2 divide-y divide-slate-100 text-left">
-          {esperando.map((t) => (
-            <li key={t.numero} className="flex justify-between py-2">
-              <span className="font-semibold text-slate-800">{t.numero}</span>
-              <span className="text-slate-500">
-                {t.nombre_cliente ?? "Sin nombre"}
-              </span>
-            </li>
-          ))}
-        </ul>
-      )}
-
-      <div className="mt-6 flex items-center justify-between">
-        <button
-          onClick={() => setVerQR(true)}
-          className="text-sm text-indigo-600 underline"
-        >
-          Ver QR
-        </button>
-        <button onClick={salir} className="text-xs text-slate-400 underline">
-          Salir
-        </button>
-      </div>
+      {error && <p className="mt-4 text-sm text-acento-oscuro">{error}</p>}
 
       <ModalQR
         abierto={verQR}
@@ -173,8 +190,6 @@ export default function Panel() {
         nombre={nombreNegocio || slug}
         slug={slug}
       />
-
-      {error && <p className="mt-3 text-sm text-red-600">{error}</p>}
     </Pantalla>
   );
 }

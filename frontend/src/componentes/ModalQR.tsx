@@ -42,7 +42,7 @@ export default function ModalQR({ abierto, onCerrar, nombre, slug }: Props) {
     estilo.textContent =
       "@page{margin:0}" +
       "body{margin:0;min-height:100vh;display:flex;flex-direction:column;" +
-      "align-items:center;justify-content:center;font-family:sans-serif;text-align:center}" +
+      "align-items:center;justify-content:center;font-family:Georgia,serif;text-align:center}" +
       "h1{font-size:2.4rem;margin:0 0 1rem}" +
       "img{width:14cm;height:14cm}";
 
@@ -61,9 +61,9 @@ export default function ModalQR({ abierto, onCerrar, nombre, slug }: Props) {
     <dialog
       ref={dialogo}
       onClose={onCerrar}
-      className="m-auto w-[min(92vw,24rem)] rounded-2xl p-6 text-center backdrop:bg-black/50"
+      className="m-auto w-[min(92vw,24rem)] rounded-md border border-linea bg-boleto p-6 text-center text-tinta backdrop:bg-tinta/60"
     >
-      <h2 className="text-lg font-bold text-slate-800">{nombre}</h2>
+      <h2 className="font-titulo text-2xl leading-tight">{nombre}</h2>
 
       <div className="mt-4 flex justify-center">
         <QRCodeCanvas
@@ -75,18 +75,20 @@ export default function ModalQR({ abierto, onCerrar, nombre, slug }: Props) {
         />
       </div>
 
-      <p className="mt-2 break-all text-xs text-slate-400">{enlace}</p>
+      <p className="mt-2 break-all font-numero text-xs text-tinta-suave">
+        {enlace}
+      </p>
 
       <div className="mt-4 grid grid-cols-2 gap-2">
         <button
           onClick={descargar}
-          className="rounded-lg bg-indigo-600 px-3 py-2 text-sm font-semibold text-white hover:bg-indigo-700"
+          className="rounded-md bg-acento px-3 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-acento-oscuro"
         >
           Descargar PNG
         </button>
         <button
           onClick={imprimir}
-          className="rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-700 hover:bg-slate-50"
+          className="rounded-md border border-linea px-3 py-2.5 text-sm transition-colors hover:bg-papel"
         >
           Imprimir
         </button>
@@ -94,7 +96,7 @@ export default function ModalQR({ abierto, onCerrar, nombre, slug }: Props) {
 
       <button
         onClick={onCerrar}
-        className="mt-4 text-sm text-slate-500 underline"
+        className="mt-4 text-sm text-tinta-suave underline underline-offset-4 hover:text-acento"
       >
         Cerrar
       </button>
