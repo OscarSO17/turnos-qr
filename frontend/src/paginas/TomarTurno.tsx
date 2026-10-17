@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import Pantalla from "../componentes/Pantalla";
+import Boleto from "../componentes/Boleto";
 import {
   ErrorApi,
   obtenerNegocio,
@@ -69,13 +70,13 @@ export default function TomarTurno() {
     }
   }
 
-  if (!negocio) {
+    if (!negocio) {
     return (
       <Pantalla>
         {error ? (
-          <p className="text-red-600">{error}</p>
+          <p className="text-acento-oscuro">{error}</p>
         ) : (
-          <p className="text-slate-500">Cargando...</p>
+          <p className="text-tinta-suave">Cargando...</p>
         )}
       </Pantalla>
     );
@@ -83,27 +84,30 @@ export default function TomarTurno() {
 
   return (
     <Pantalla>
-      <h1 className="text-2xl font-bold text-slate-800">{negocio.nombre}</h1>
-      <p className="mt-2 text-slate-500">Toma tu turno desde el celular.</p>
+      <Boleto etiqueta="Turnos" titulo={negocio.nombre}>
+        <p className="text-sm text-tinta-suave">
+          Toma tu turno desde el celular y sigue la fila sin esperar de pie.
+        </p>
 
-      <input
-        type="text"
-        value={nombre}
-        onChange={(e) => setNombre(e.target.value)}
-        placeholder="Tu nombre (opcional)"
-        maxLength={60}
-        className="mt-6 w-full rounded-lg border border-slate-300 px-3 py-2 text-slate-800"
-      />
+        <input
+          type="text"
+          value={nombre}
+          onChange={(e) => setNombre(e.target.value)}
+          placeholder="Tu nombre (opcional)"
+          maxLength={60}
+          className="mt-5 w-full rounded-md border border-linea bg-papel px-3 py-2.5 text-center placeholder:text-tinta-suave/70 focus:border-acento focus:outline-none"
+        />
 
-      <button
-        onClick={manejarClic}
-        disabled={enviando}
-        className="mt-4 w-full rounded-lg bg-indigo-600 px-4 py-3 font-semibold text-white hover:bg-indigo-700 disabled:opacity-50"
-      >
-        {enviando ? "Tomando turno..." : "Tomar turno"}
-      </button>
+        <button
+          onClick={manejarClic}
+          disabled={enviando}
+          className="mt-3 w-full rounded-md bg-acento px-4 py-3 font-semibold tracking-wide text-white transition-colors hover:bg-acento-oscuro disabled:opacity-50"
+        >
+          {enviando ? "Tomando turno..." : "Tomar turno"}
+        </button>
 
-      {error && <p className="mt-3 text-sm text-red-600">{error}</p>}
+        {error && <p className="mt-3 text-sm text-acento-oscuro">{error}</p>}
+      </Boleto>
     </Pantalla>
   );
 }

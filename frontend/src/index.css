@@ -1,6 +1,27 @@
 @import "tailwindcss";
 
+@theme {
+  --color-papel: #f4efe6;
+  --color-boleto: #fbf8f2;
+  --color-tinta: #1f1b16;
+  --color-tinta-suave: #6b645a;
+  --color-linea: #d9d1c3;
+  --color-acento: #b4432b;
+  --color-acento-oscuro: #8f3320;
+  --color-ok: #3f6b4f;
+
+  --font-titulo: "Fraunces Variable", Georgia, serif;
+  --font-numero: "DM Mono", ui-monospace, Menlo, monospace;
+}
+
+@layer base {
+  body {
+    background-color: var(--color-papel);
+    color: var(--color-tinta);
+    -webkit-font-smoothing: antialiased;
+  }
+}
+
 @page {
   margin: 0;
 }
-
