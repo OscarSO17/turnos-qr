@@ -7,6 +7,7 @@ import cors from "cors";
 
 const app = express();
 app.set("trust proxy", 3);
+// Render asigna el puerto con la variable PORT; en local usamos el 3000.
 const PUERTO = Number(process.env.PORT) || 3000;
 
 app.use(cors({ origin: process.env.FRONTEND_URL ?? "http://localhost:5173" }));
