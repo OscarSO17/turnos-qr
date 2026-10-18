@@ -1,16 +1,18 @@
 # Turnos QR
 
+[![Pruebas](https://github.com/OscarSO17/turnos-qr/actions/workflows/pruebas.yml/badge.svg)](https://github.com/OscarSO17/turnos-qr/actions/workflows/pruebas.yml)
+
 Una fila virtual para negocios pequeños. La idea es sencilla: el negocio pega un código QR en la pared, el cliente lo escanea con su celular, toma su turno y desde ahí ve cuántas personas tiene delante, sin instalar nada. Del otro lado, el dueño maneja la fila desde un panel y avanza con un solo botón.
 
 **Demo:** https://turnos-qr.vercel.app
+
+[Cómo está armado](#cómo-está-armado) · [Decisiones técnicas](#decisiones-técnicas) · [Lo que me tocó depurar](#lo-que-me-tocó-depurar) · [API](#api) · [Correrlo en local](#correrlo-en-local) · [Pruebas](#pruebas)
 
 ## Está publicado y funcionando
 
 Todo el proyecto está desplegado en servicios con plan gratuito, así que se puede probar sin instalar nada. El frontend vive en Vercel, la API en Render y la base de datos en Neon.
 
-Por ser planes gratuitos hay un detalle que conviene saber: el servidor de Render se duerme cuando pasa unos 15 minutos sin recibir visitas, y la primera petición después de eso tarda cerca de un minuto en despertarlo. Si la demo parece lenta al entrar, es por eso y no porque esté caída; después de ese primer momento responde con normalidad.
-
-Para que nadie piense que se rompió, la interfaz muestra un aviso cuando una petición tarda más de 4 segundos.
+Por ser planes gratuitos hay un detalle que conviene saber: el servidor de Render se duerme cuando pasa unos 15 minutos sin recibir visitas, y la primera petición después de eso tarda cerca de un minuto en despertarlo. Si la demo parece lenta al entrar, es por eso y no porque esté caída; después de ese primer momento responde con normalidad. Para que nadie piense que se rompió, la interfaz muestra un aviso cuando una petición tarda más de 4 segundos.
 
 ## Por qué lo hice
 
@@ -38,10 +40,6 @@ Cada negocio tiene su propia dirección (`/n/nombre-del-negocio`), que es la que
 
 **Los números de turno los protege la base de datos, no el código.** El siguiente número se calcula como el mayor del negocio más uno, pero si dos clientes piden turno al mismo tiempo, los dos calculan el mismo. Para que eso no genere turnos repetidos, la tabla tiene una restricción `UNIQUE (negocio_id, numero)`: solo uno de los dos entra, y el otro recibe un error de clave duplicada. En ese caso la API reintenta con el número siguiente, hasta 5 veces. La garantía no depende de que mi código sea perfecto, sino de una regla que la base de datos hace cumplir.
 
-**Los límites de peticiones solo cubren lo que escribe.** Crear negocios (5 por hora), pedir turnos (30 cada 10 minutos) y los intentos fallidos con el código del dueño (10 cada 15 minutos) tienen límite por IP. Las consultas de lectura, como las que hace la pantalla cada 5 segundos, no lo tienen a propósito: los clientes de un mismo negocio suelen compartir Wi-Fi y, por lo tanto, IP, así que un límite general bloquearía a gente legítima. Como la API corre detrás del proxy de Render, usa `trust proxy` para leer la IP real de cada cliente.
-
-**La interfaz parte de una idea: el turno es un boleto.** Fondo de papel cálido, texto en tinta oscura y un solo acento terracota apagado, con Fraunces para los títulos y DM Mono para los números, como en las máquinas de turnos. Los colores y las fuentes se definen una sola vez en el tema de Tailwind, así que cambiar la paleta toca un único archivo. Las fuentes se sirven desde el propio sitio con Fontsource, sin depender de un servicio externo. El panel del dueño aprovecha el ancho de la pantalla porque se usa en una computadora o tablet detrás del mostrador; las pantallas del cliente están pensadas para el celular.
-
 ```mermaid
 sequenceDiagram
   participant A as Cliente A
@@ -62,13 +60,17 @@ sequenceDiagram
 
 **"Siguiente" corre dentro de una transacción con bloqueo.** Esa acción termina el turno actual y activa el siguiente, y tienen que pasar las dos cosas o ninguna. Además se bloquea la fila del negocio (`FOR UPDATE`) para que dos clics seguidos no se pisen y salten a alguien.
 
+**Cancelar cambia el estado, no borra el turno.** El turno pasa a `cancelado` solo si seguía en `esperando`, y esa condición va dentro del propio `UPDATE`. Así, si un cliente cancela justo cuando el dueño lo está llamando, el turno no queda en un estado inconsistente. Conservar el historial también deja abierta la puerta a estadísticas, como los tiempos de espera.
+
+**El cliente no pierde su turno si cierra la pestaña.** Al tomar un turno, el código se guarda en el navegador (`localStorage`). Cuando alguien abre la dirección de un negocio, la app consulta primero si ya tiene un turno vigente ahí: si sigue esperando o en atención, lo lleva directo a su pantalla; si ya terminó, se canceló o no existe, lo olvida y muestra el formulario. Si la consulta falla por un error de red o del servidor, no se borra nada, porque no hay forma de saber si el turno sigue vigente. La consecuencia es que en un mismo navegador no puede haber dos turnos activos del mismo negocio.
+
 **El dueño entra con un código, sin cuentas.** Al crear el negocio se genera un código aleatorio de 48 caracteres que se muestra una sola vez. En la base de datos solo se guarda su hash SHA-256, así que ver la tabla no sirve para entrar a ningún panel. El código viaja en el encabezado `Authorization` y el navegador lo recuerda en `localStorage`. Dejé las cuentas con inicio de sesión para más adelante; para un primer alcance, un código largo y aleatorio me pareció suficiente.
 
 **La pantalla consulta al servidor cada 5 segundos en lugar de usar WebSockets.** Es más simple de construir, de desplegar en un plan gratuito y de explicar, y para una fila de turnos unos segundos de diferencia no se notan. El costo es que hay tráfico de más cuando nada cambió.
 
-**Cancelar cambia el estado, no borra el turno.** El turno pasa a `cancelado` solo si seguía en `esperando`, y esa condición va dentro del propio `UPDATE`. Así, si un cliente cancela justo cuando el dueño lo está llamando, el turno no queda en un estado inconsistente. Conservar el historial también deja abierta la puerta a estadísticas, como los tiempos de espera.
+**Los límites de peticiones solo cubren lo que escribe.** Crear negocios (5 por hora), pedir turnos (30 cada 10 minutos) y los intentos fallidos con el código del dueño (10 cada 15 minutos) tienen límite por IP. Las consultas de lectura, como las que hace la pantalla cada 5 segundos, no lo tienen a propósito: los clientes de un mismo negocio suelen compartir Wi-Fi y, por lo tanto, IP, así que un límite general bloquearía a gente legítima. La API corre detrás de Cloudflare y de dos saltos internos de Render, así que `trust proxy` está en 3 para leer la IP real del cliente. Si Render cambia su infraestructura, habría que volver a medirlo.
 
-**El cliente no pierde su turno si cierra la pestaña.** Al tomar un turno, el código se guarda en el navegador (`localStorage`). Cuando alguien abre la dirección de un negocio, la app consulta primero si ya tiene un turno vigente ahí: si sigue esperando o en atención, lo lleva directo a su pantalla; si ya terminó, se canceló o no existe, lo olvida y muestra el formulario. Si la consulta falla por un error de red o del servidor, no se borra nada, porque no hay forma de saber si el turno sigue vigente. La consecuencia es que en un mismo navegador no puede haber dos turnos activos del mismo negocio.
+**La interfaz parte de una idea: el turno es un boleto.** Fondo de papel cálido, texto en tinta oscura y un solo acento terracota apagado, con Fraunces para los títulos y DM Mono para los números, como en las máquinas de turnos. Los colores y las fuentes se definen una sola vez en el tema de Tailwind, así que cambiar la paleta toca un único archivo. Las fuentes se sirven desde el propio sitio con Fontsource, sin depender de un servicio externo. El panel del dueño aprovecha el ancho de la pantalla porque se usa en una computadora o tablet detrás del mostrador; las pantallas del cliente están pensadas para el celular.
 
 ## Tecnologías
 
@@ -90,6 +92,7 @@ sequenceDiagram
 | Neon | Base de datos PostgreSQL gestionada, plan gratuito |
 | Vercel | Publicar el frontend |
 | Render | Publicar la API |
+| GitHub Actions | Compilar el backend y el frontend y correr las pruebas en cada push |
 | Git y GitHub | Control de versiones; cada push a `main` despliega solo en Vercel y Render |
 
 ## API
@@ -137,21 +140,37 @@ erDiagram
 
 ```
 turnos-qr/
+├── .github/workflows/pruebas.yml
 ├── backend/
 │   ├── db/schema.sql
+│   ├── vitest.config.mts
 │   └── src/
+│       ├── app.ts
 │       ├── index.ts
 │       ├── db.ts
-│       ├── middleware/autenticarDueno.ts
-│       └── rutas/
-│           ├── negocios.ts
-│           └── turnos.ts
+│       ├── middleware/
+│       │   ├── autenticarDueno.ts
+│       │   └── limites.ts
+│       ├── rutas/
+│       │   ├── negocios.ts
+│       │   └── turnos.ts
+│       └── pruebas/
+│           ├── preparar.ts
+│           └── api.test.ts
 └── frontend/
     ├── vercel.json
+    ├── public/favicon.svg
     └── src/
+        ├── main.tsx
+        ├── App.tsx
+        ├── index.css
         ├── api.ts
         ├── sesion.ts
-        ├── componentes/Pantalla.tsx
+        ├── componentes/
+        │   ├── Pantalla.tsx
+        │   ├── Boleto.tsx
+        │   ├── ModalQR.tsx
+        │   └── AvisoServidor.tsx
         └── paginas/
             ├── Inicio.tsx
             ├── TomarTurno.tsx
@@ -164,27 +183,27 @@ turnos-qr/
 Necesitas Node.js 20.19 o superior (lo probé con la 24), Git y una base de datos PostgreSQL. Yo uso Neon, que tiene plan gratuito.
 
 1. Clona el repositorio:
+
 ```
    git clone https://github.com/OscarSO17/turnos-qr.git
    cd turnos-qr
 ```
+
 2. Crea las tablas ejecutando el contenido de `backend/db/schema.sql` en tu base de datos.
-3. Backend:
+
+3. Arranca el backend. Copia `backend/.env.example` a `backend/.env`, completa los valores y ejecuta:
+
 ```
    cd backend
    npm install
-```
-   Copia `.env.example` a `.env`, completa los valores y arranca:
-```
    npm run dev
 ```
-4. Frontend, en otra terminal:
+
+4. En otra terminal, arranca el frontend. Copia `frontend/.env.example` a `frontend/.env` y ejecuta:
+
 ```
    cd frontend
    npm install
-```
-   Copia `.env.example` a `.env` y arranca:
-```
    npm run dev
 ```
 
@@ -196,21 +215,23 @@ Variables de entorno:
 | `DATABASE_URL_PRUEBAS` | Backend | Cadena de conexión de una base de datos aparte, solo para las pruebas |
 | `FRONTEND_URL` | Backend | Origen permitido por CORS. Por defecto `http://localhost:5173` |
 | `PORT` | Backend | Puerto del servidor. Por defecto 3000 |
-| `VITE_API_URL` | Frontend | Dirección del backend. En local, `http://localhost:3000` |
 | `DESACTIVAR_LIMITES` | Backend | Con valor `1` desactiva los límites de peticiones. Solo para desarrollo |
+| `VITE_API_URL` | Frontend | Dirección del backend. En local, `http://localhost:3000` |
 
 ## Pruebas
 
 Las pruebas del backend usan Vitest y Supertest y corren contra una base de datos PostgreSQL real, porque lo que más me interesaba verificar son reglas que viven en la propia base de datos: que los números de turno no se repitan y que el orden de la fila se respete. Para no tocar los datos de la demo, usan una rama aparte de Neon, cuya cadena va en `DATABASE_URL_PRUEBAS`. Si esa variable falta o es igual a `DATABASE_URL`, las pruebas se niegan a correr. Cada prueba crea su propio negocio y borra lo que creó.
 
-    cd backend
-    npm test
+```
+cd backend
+npm test
+```
 
-Cubren los turnos consecutivos, cinco clientes pidiendo turno al mismo tiempo sin repetir número, que los de atrás avancen cuando alguien cancela, que no se pueda cancelar dos veces, que las rutas del dueño exijan su código y que "Siguiente" avance en orden.
+Cubren los turnos consecutivos, cinco clientes pidiendo turno al mismo tiempo sin repetir número, que los de atrás avancen cuando alguien cancela, que no se pueda cancelar dos veces, que las rutas del dueño exijan su código y que "Siguiente" avance en orden. También corren solas en GitHub Actions con cada push y cada pull request, junto con una compilación del frontend.
 
 ## Limitaciones conocidas y lo que sigue
 
-Las pruebas cubren los casos principales del backend, pero todavía no corren solas en cada push y no hay pruebas del frontend. Tampoco hay Docker. Con 5 reintentos, la API garantiza turnos correctos aunque hasta 5 clientes pidan a la vez en el mismo negocio; por encima de eso puede responder 503 y el cliente tendría que reintentar.
+Las pruebas cubren los casos principales del backend y corren solas en GitHub Actions con cada push, pero no hay pruebas del frontend. Tampoco hay Docker. Con 5 reintentos, la API garantiza turnos correctos aunque hasta 5 clientes pidan a la vez en el mismo negocio; por encima de eso puede responder 503 y el cliente tendría que reintentar.
 
 Hay cosas que dejé simples a propósito. Los límites de peticiones se guardan en memoria, así que se reinician cuando el servicio duerme o se vuelve a desplegar, y no hay verificación humana (captcha). El nombre del negocio define su dirección, así que dos negocios no pueden llamarse igual. Si el dueño pierde su código no hay forma de recuperarlo, algo que se resolvería con cuentas de usuario. La numeración no se reinicia cada día. El entorno de desarrollo y la demo comparten la misma base de datos. Y no hay tiempo estimado de espera ni avisos al celular: la pantalla solo se actualiza si está abierta.
 
