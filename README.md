@@ -85,6 +85,7 @@ sequenceDiagram
 | `pg` | Conexión y consultas a PostgreSQL (con consultas parametrizadas) |
 | `cors` y `dotenv` | Permitir solo al frontend llamar a la API, y leer la configuración desde variables de entorno |
 | `express-rate-limit` | Limitar por IP la creación de negocios, los turnos y los intentos fallidos del dueño |
+| Vitest y Supertest | Pruebas de integración del backend contra una base de datos PostgreSQL real |
 | PostgreSQL | Guardar negocios y turnos, y hacer cumplir las reglas de unicidad |
 | Neon | Base de datos PostgreSQL gestionada, plan gratuito |
 | Vercel | Publicar el frontend |
@@ -192,14 +193,24 @@ Variables de entorno:
 | Variable | Dónde | Descripción |
 |---|---|---|
 | `DATABASE_URL` | Backend | Cadena de conexión a PostgreSQL |
+| `DATABASE_URL_PRUEBAS` | Backend | Cadena de conexión de una base de datos aparte, solo para las pruebas |
 | `FRONTEND_URL` | Backend | Origen permitido por CORS. Por defecto `http://localhost:5173` |
 | `PORT` | Backend | Puerto del servidor. Por defecto 3000 |
 | `VITE_API_URL` | Frontend | Dirección del backend. En local, `http://localhost:3000` |
 | `DESACTIVAR_LIMITES` | Backend | Con valor `1` desactiva los límites de peticiones. Solo para desarrollo |
 
+## Pruebas
+
+Las pruebas del backend usan Vitest y Supertest y corren contra una base de datos PostgreSQL real, porque lo que más me interesaba verificar son reglas que viven en la propia base de datos: que los números de turno no se repitan y que el orden de la fila se respete. Para no tocar los datos de la demo, usan una rama aparte de Neon, cuya cadena va en `DATABASE_URL_PRUEBAS`. Si esa variable falta o es igual a `DATABASE_URL`, las pruebas se niegan a correr. Cada prueba crea su propio negocio y borra lo que creó.
+
+    cd backend
+    npm test
+
+Cubren los turnos consecutivos, cinco clientes pidiendo turno al mismo tiempo sin repetir número, que los de atrás avancen cuando alguien cancela, que no se pueda cancelar dos veces, que las rutas del dueño exijan su código y que "Siguiente" avance en orden.
+
 ## Limitaciones conocidas y lo que sigue
 
-Todavía no tiene pruebas automatizadas. Es lo primero que quiero agregar, empezando por el caso de dos clientes pidiendo turno al mismo tiempo, que es la parte más delicada. Tampoco hay Docker ni integración continua: hoy el despliegue lo hacen Vercel y Render al recibir un push.
+Las pruebas cubren los casos principales del backend, pero todavía no corren solas en cada push y no hay pruebas del frontend. Tampoco hay Docker. Con 5 reintentos, la API garantiza turnos correctos aunque hasta 5 clientes pidan a la vez en el mismo negocio; por encima de eso puede responder 503 y el cliente tendría que reintentar.
 
 Hay cosas que dejé simples a propósito. Los límites de peticiones se guardan en memoria, así que se reinician cuando el servicio duerme o se vuelve a desplegar, y no hay verificación humana (captcha). El nombre del negocio define su dirección, así que dos negocios no pueden llamarse igual. Si el dueño pierde su código no hay forma de recuperarlo, algo que se resolvería con cuentas de usuario. La numeración no se reinicia cada día. El entorno de desarrollo y la demo comparten la misma base de datos. Y no hay tiempo estimado de espera ni avisos al celular: la pantalla solo se actualiza si está abierta.
 
